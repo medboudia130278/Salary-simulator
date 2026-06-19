@@ -1,0 +1,1062 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulateur salaire & retraite · Alstom</title>
+<style>
+  :root{
+    --bg:#0e1217; --panel:#151b22; --panel2:#1a212a; --line:#262f3a;
+    --txt:#e7eef6; --muted:#8a97a8; --faint:#5c6a7a;
+    --copper:#e0944a;        /* signature : cuivre, clin d'œil caténaire */
+    --copper-dim:#7a5430;
+    --net:#54d6b6;           /* gain net */
+    --debit:#e8736b;         /* retenues */
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:var(--bg);color:var(--txt);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased}
+  .mono{font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+  .wrap{max-width:1120px;margin:0 auto;padding:32px 22px 80px}
+
+  /* Header */
+  header{display:flex;align-items:flex-end;justify-content:space-between;
+    gap:20px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:20px;margin-bottom:30px}
+  .brand{display:flex;align-items:center;gap:14px}
+  .company-logo{width:118px;height:auto;display:block;flex:none;background:#fff;
+    border-radius:4px;padding:5px 7px}
+  h1{font-size:19px;font-weight:650;letter-spacing:.2px}
+  h1 small{display:block;font-size:11.5px;font-weight:500;color:var(--muted);letter-spacing:.6px;
+    text-transform:uppercase;margin-top:3px}
+  .stamp{text-align:right;font-size:11.5px;color:var(--muted);line-height:1.7}
+  .stamp b{color:var(--copper);font-weight:600}
+  .credit{color:#5fb3ff;font-weight:650}
+
+  /* Tabs */
+  .tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin:-8px 0 28px}
+  .tab-btn{background:none;border:none;color:var(--muted);padding:12px 14px 13px;
+    font-size:12px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;cursor:pointer;
+    border-bottom:2px solid transparent}
+  .tab-btn:hover{color:var(--txt)}
+  .tab-btn.active{color:var(--copper);border-bottom-color:var(--copper)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  @media(max-width:840px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:22px}
+  .card h2{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted);
+    font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:9px}
+  .card h2::before{content:"";width:6px;height:6px;background:var(--copper);border-radius:50%;flex:none}
+
+  /* Brut input */
+  .brut-field label{font-size:12px;color:var(--muted);display:block;margin-bottom:9px}
+  .brut-input{display:flex;align-items:baseline;gap:8px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:9px;padding:14px 16px;transition:border-color .15s}
+  .brut-input:focus-within{border-color:var(--copper)}
+  .brut-input input{flex:1;background:none;border:none;color:var(--txt);font-size:30px;
+    font-weight:650;outline:none;width:100%}
+  .brut-input .cur{font-size:17px;color:var(--muted);font-weight:600}
+  input[type=range]{width:100%;margin-top:18px;-webkit-appearance:none;height:4px;
+    background:var(--line);border-radius:4px;outline:none}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;
+    border-radius:50%;background:var(--copper);cursor:pointer;border:3px solid var(--bg);
+    box-shadow:0 0 0 1px var(--copper)}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--copper);
+    cursor:pointer;border:3px solid var(--bg)}
+  .range-meta{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:7px}
+
+  /* Big readout */
+  .net-readout{text-align:center;padding:6px 0 4px}
+  .net-readout .lbl{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted)}
+  .net-readout .val{font-size:46px;font-weight:700;color:var(--net);margin:6px 0 2px;line-height:1}
+  .net-readout .val .cur{font-size:22px;color:var(--net);opacity:.7;font-weight:600;margin-left:4px}
+  .net-readout .delta{font-size:12px;color:var(--muted)}
+  .net-readout .delta b{color:var(--copper)}
+
+  /* Mini stats */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:9px;overflow:hidden;margin-top:20px}
+  .stat{background:var(--panel);padding:13px 15px}
+  .stat .k{font-size:10.5px;color:var(--muted);letter-spacing:.4px}
+  .stat .v{font-size:16px;font-weight:650;margin-top:3px}
+
+  /* Waterfall */
+  .wf{display:flex;flex-direction:column;gap:2px}
+  .wf-row{display:flex;align-items:center;justify-content:space-between;padding:11px 13px;
+    border-radius:7px;font-size:13px}
+  .wf-row.head{background:var(--panel2)}
+  .wf-row .nm{display:flex;align-items:center;gap:10px;color:var(--txt)}
+  .wf-row .nm .tag{font-size:10px;color:var(--faint);width:14px;text-align:right}
+  .wf-row .amt{font-weight:650}
+  .wf-row.debit .amt{color:var(--debit)}
+  .wf-row.add .amt{color:var(--net)}
+  .wf-row.total{background:var(--panel2);border:1px solid var(--copper-dim);margin-top:4px}
+  .wf-row.total .nm{font-weight:650;color:var(--copper)}
+  .wf-row.total .amt{color:var(--copper)}
+  .wf-row.grand{background:linear-gradient(90deg,rgba(84,214,182,.08),transparent);
+    border:1px solid var(--net)}
+  .wf-row.grand .nm{font-weight:700}
+  .wf-row.grand .amt{color:var(--net);font-size:16px;font-weight:700}
+
+  /* Breakdown table */
+  .detail-head{display:flex;align-items:center;justify-content:space-between;gap:16px;
+    flex-wrap:wrap;margin-bottom:18px}
+  .detail-head h2{margin-bottom:0}
+  .rate-toggle{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);
+    cursor:pointer;user-select:none}
+  .rate-toggle input{width:14px;height:14px;accent-color:var(--copper);cursor:pointer}
+  .tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+  .tbl th{text-align:left;font-size:10px;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--muted);font-weight:600;padding:0 0 10px;border-bottom:1px solid var(--line)}
+  .tbl th.r,.tbl td.r{text-align:right}
+  .tbl td{padding:8px 0;border-bottom:1px solid var(--panel2)}
+  .tbl tr.grp td{color:var(--copper);font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    font-weight:600;padding-top:15px;border:none}
+  .tbl .base{color:var(--faint);font-size:11px}
+  .tbl .taux{color:var(--muted)}
+  .rate-input{width:72px;background:var(--panel2);border:1px solid var(--line);border-radius:6px;
+    color:var(--txt);padding:6px 8px;text-align:right;font-size:12px;outline:none}
+  .rate-input:focus{border-color:var(--copper)}
+  .tbl .mont{font-weight:600;color:var(--debit)}
+  .tbl tfoot td{padding-top:12px;border-top:1px solid var(--copper-dim);font-weight:700;color:var(--copper)}
+  .tap-hint{font-size:11.5px;color:var(--faint);margin:-6px 0 16px;display:flex;align-items:center;gap:7px}
+  .tap-hint::before{content:"☞";color:var(--copper);font-size:13px}
+
+  /* Lignes dépliables */
+  .cot-row{cursor:pointer;transition:background .12s}
+  .cot-row:hover{background:var(--panel2)}
+  .chev{color:var(--copper);font-size:10px;transition:transform .18s;display:inline-block;
+    margin-right:9px;width:8px}
+  .cot-row.open .chev{transform:rotate(90deg)}
+  .cot-row.open td{border-bottom:none}
+  .exp-row{display:none}
+  .exp-row.open{display:table-row}
+  .exp-row td{padding:0!important;border:none!important}
+  .exp-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;
+    background:var(--panel2);border-left:2px solid var(--copper);border-radius:0 8px 8px 0;
+    padding:16px 18px;margin:2px 0 10px}
+  @media(max-width:720px){.exp-inner{grid-template-columns:1fr;gap:13px}}
+  .exp-block .exp-k{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--copper);
+    font-weight:700;display:block;margin-bottom:6px}
+  .exp-block p{font-size:12px;line-height:1.55;color:var(--txt);opacity:.92}
+  .exp-formula{color:var(--net)!important;font-size:11.5px!important;
+    background:var(--bg);padding:7px 9px;border-radius:5px;display:inline-block}
+  .exp-sub{font-size:11px!important;color:var(--muted)!important;margin-top:7px}
+
+  /* Lexique */
+  .lexique{display:flex;flex-direction:column;gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  .lex-item{background:var(--panel);padding:13px 16px;display:grid;
+    grid-template-columns:160px 1fr;gap:16px;align-items:baseline}
+  @media(max-width:600px){.lex-item{grid-template-columns:1fr;gap:4px}}
+  .lex-k{font-size:12.5px;font-weight:650;color:var(--copper)}
+  .lex-v{font-size:12px;line-height:1.55;color:var(--muted)}
+  .lex-v a{color:#5fb3ff;text-decoration:none;font-weight:650;margin-left:8px;white-space:nowrap}
+  .lex-v a:hover{text-decoration:underline}
+
+  /* Params */
+  details{margin-top:22px;border-top:1px solid var(--line);padding-top:16px}
+  summary{cursor:pointer;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;
+    color:var(--muted);font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"+";color:var(--copper);font-size:15px;width:12px}
+  details[open] summary::before{content:"–"}
+  .params{display:grid;grid-template-columns:1fr 1fr;gap:13px;margin-top:18px}
+  @media(max-width:520px){.params{grid-template-columns:1fr}}
+  .pf label{display:block;font-size:11px;color:var(--muted);margin-bottom:5px}
+  .pf input{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:9px 11px;color:var(--txt);font-size:13px;outline:none}
+  .pf input:focus{border-color:var(--copper)}
+  .pf input:disabled{opacity:.6;cursor:not-allowed;border-style:dashed}
+  .pf select{width:100%;background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+    padding:9px 11px;color:var(--txt);font-size:13px;outline:none;cursor:pointer}
+  .pf select:focus{border-color:var(--copper)}
+  .pf .hint{font-size:10px;color:var(--faint);margin-top:4px}
+  .auto-box{margin-top:18px;border:1px solid var(--line);border-radius:9px;padding:14px 15px;
+    background:rgba(224,148,74,.04)}
+  .chk{display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--txt);cursor:pointer;font-weight:600}
+  .chk input{width:16px;height:16px;accent-color:var(--copper);cursor:pointer;flex:none}
+  .hint2{font-size:10.5px;color:var(--faint);margin:7px 0 0;line-height:1.5}
+  .auto-box .params{margin-top:14px}
+  .auto-details{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+  .auto-details summary{cursor:pointer;font-size:10px;letter-spacing:1px;text-transform:uppercase;
+    color:var(--muted);font-weight:700;list-style:none;display:flex;align-items:center;gap:8px}
+  .auto-details summary::-webkit-details-marker{display:none}
+  .auto-details summary::before{content:"▸";color:var(--copper);font-size:10px;width:10px;
+    transition:transform .18s}
+  .auto-details[open] summary::before{content:"▸";transform:rotate(90deg)}
+  .param-explain{margin-top:16px}
+  .auto-explain{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:14px;
+    background:var(--panel2);border-left:2px solid var(--copper);border-radius:0 8px 8px 0;
+    padding:14px 16px}
+  @media(max-width:720px){.auto-explain{grid-template-columns:1fr;gap:12px}}
+  .auto-explain .exp-k{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--copper);
+    font-weight:700;display:block;margin-bottom:6px}
+  .auto-explain p{font-size:12px;line-height:1.55;color:var(--txt);opacity:.92}
+  .auto-explain .formula{color:var(--net);font-size:11.5px;background:var(--bg);
+    padding:7px 9px;border-radius:5px;display:inline-block;margin-top:4px}
+  .reset{margin-top:16px;background:none;border:1px solid var(--line);color:var(--muted);
+    padding:8px 14px;border-radius:7px;font-size:11.5px;cursor:pointer}
+  .reset:hover{border-color:var(--copper);color:var(--copper)}
+
+  /* Reverse solver */
+  .solver{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  .solver .pf{flex:1;min-width:150px}
+  .solver button{background:var(--copper);color:#1a1206;border:none;font-weight:650;
+    padding:10px 18px;border-radius:8px;cursor:pointer;font-size:13px}
+  .solver button:hover{filter:brightness(1.08)}
+  .solver-out{margin-top:14px;font-size:13px;color:var(--muted);min-height:20px}
+  .solver-out b{color:var(--copper);font-size:15px}
+
+  /* Retirement */
+  .ret-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  @media(max-width:900px){.ret-grid{grid-template-columns:1fr}}
+  .ret-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:var(--line);
+    border:1px solid var(--line);border-radius:9px;overflow:hidden}
+  @media(max-width:560px){.ret-kpis{grid-template-columns:1fr}}
+  .ret-kpi{background:var(--panel);padding:14px 15px}
+  .ret-kpi .k{font-size:10.5px;color:var(--muted);letter-spacing:.4px}
+  .ret-kpi .v{font-size:18px;font-weight:700;margin-top:4px;color:var(--txt)}
+  .ret-kpi.main .v{color:var(--net);font-size:24px}
+  .ret-list{display:flex;flex-direction:column;gap:2px}
+  .ret-row{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:10px 12px;border-radius:7px;background:var(--panel2);font-size:12.5px}
+  .ret-row span:first-child{color:var(--muted)}
+  .ret-row b{font-weight:700;color:var(--txt)}
+  .linked-salary{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px}
+  .linked-salary b{color:var(--net);font-size:16px}
+
+  .note{font-size:11px;color:var(--faint);line-height:1.7;margin-top:26px;
+    border-top:1px solid var(--line);padding-top:16px}
+  .note b{color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="brand">
+      <img class="company-logo" src="assets/alstom-logo.png" alt="Alstom">
+      <h1>Simulateur salaire & retraite<small>Cadre · Convention Métallurgie · Forfait jours</small></h1>
+    </div>
+    <div class="stamp">
+      Simulation indicative <b>2026</b><br>
+      Base de calcul paramétrable<br>
+      <span class="credit">Créé par Mohamed BOUDIA</span>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Sections du simulateur">
+    <button class="tab-btn active" type="button" data-tab="salaryPanel">Salaire</button>
+    <button class="tab-btn" type="button" data-tab="retirementPanel">Retraite</button>
+  </nav>
+
+  <section id="salaryPanel" class="tab-panel active">
+  <div class="grid">
+
+    <!-- COLONNE GAUCHE -->
+    <div>
+      <div class="card">
+        <h2>Salaire brut mensuel</h2>
+        <div class="brut-field">
+          <div class="brut-input">
+            <input id="brut" class="mono" type="text" inputmode="decimal" value="5 000,00">
+            <span class="cur">€</span>
+          </div>
+          <input id="brutRange" type="range" min="2500" max="15000" step="10" value="5000">
+          <div class="range-meta"><span>2 500 €</span><span>15 000 €</span></div>
+        </div>
+
+        <details open>
+          <summary>Hypothèses & paramètres</summary>
+          <div class="params">
+            <div class="pf"><label>Année de référence (barème)</label>
+              <select id="annee" class="mono">
+                <option value="2026" selected>2026</option>
+                <option value="2025">2025</option>
+                <option value="2024">2024</option>
+              </select>
+              <div class="hint">Fixe le PMSS officiel</div></div>
+            <div class="pf"><label>Plafond mensuel SS (PMSS)</label>
+              <input id="pmss" class="mono" type="text" value="4 005,00">
+              <div class="hint">Rempli selon l'année · modifiable</div></div>
+            <div class="pf"><label>Taux de prélèvement à la source</label>
+              <input id="pas" class="mono" type="text" value="2,50">
+              <div class="hint">À renseigner par chaque utilisateur (%)</div></div>
+            <div class="pf"><label>Indemnité transport</label>
+              <input id="transport" class="mono" type="text" value="68,10">
+              <div class="hint">Non soumise (remboursement)</div></div>
+            <div class="pf"><label>Indemnité télétravail (TAD)</label>
+              <input id="tad" class="mono" type="text" value="24,00">
+              <div class="hint">Non soumise</div></div>
+            <div class="pf"><label>Réintégration sociale</label>
+              <input id="rsoc" class="mono" type="text" value="2,16">
+              <div class="hint">Forfait part patronale (≈ constant)</div></div>
+          </div>
+
+          <details class="auto-details param-explain">
+            <summary>Comprendre ces paramètres</summary>
+            <div class="auto-explain">
+              <div>
+                <span class="exp-k">Sens</span>
+                <p>Ces champs décrivent le contexte personnel ou réglementaire de la simulation : année du barème, plafond de Sécurité sociale, taux d'impôt, indemnités non soumises et réintégration sociale.</p>
+              </div>
+              <div>
+                <span class="exp-k">Calcul</span>
+                <p>Le PMSS détermine les tranches de cotisation. Le PAS est appliqué au net imposable. Transport et TAD s'ajoutent au net avant impôt sans créer de cotisations. La réintégration sociale augmente légèrement la base utilisée pour certaines cotisations.</p>
+              </div>
+              <div>
+                <span class="exp-k">Usage</span>
+                <p>Modifiez d'abord le brut, puis ajustez ces paramètres si votre fiche de paie indique un autre PAS, un autre remboursement transport, une autre indemnité télétravail ou une autre réintégration sociale.</p>
+              </div>
+            </div>
+          </details>
+
+          <div class="auto-box">
+            <label class="chk"><input type="checkbox" id="autoReint" checked>
+              <span>Réintégrations fiscale &amp; CSG automatiques</span></label>
+            <p class="hint2">Estimées automatiquement selon la tranche B et les paramètres saisis.
+              Décochez pour saisir des valeurs fixes.</p>
+            <div class="params">
+              <div class="pf"><label>Réintégration fiscale</label>
+                <input id="rfisc" class="mono" type="text" value="104,93">
+                <div class="hint" id="rfiscHint">auto</div></div>
+              <div class="pf"><label>Base CSG non abattue</label>
+                <input id="rcsg" class="mono" type="text" value="187,85">
+                <div class="hint" id="rcsgHint">auto</div></div>
+            </div>
+            <details class="auto-details">
+              <summary>Comprendre ces réintégrations</summary>
+              <div class="auto-explain">
+                <div>
+                  <span class="exp-k">Sens</span>
+                  <p>Ces montants représentent des parts patronales à réintégrer dans certaines bases. Elles ne sont pas versées en net, mais elles influencent le net imposable et l'assiette CSG/CRDS.</p>
+                </div>
+                <div>
+                  <span class="exp-k">Calcul</span>
+                  <p>En mode automatique, l'estimation augmente avec la tranche B du salaire.</p>
+                  <p class="mono formula">base fixe + coefficient × TB</p>
+                </div>
+                <div>
+                  <span class="exp-k">Usage</span>
+                  <p>Laissez l'automatique pour simuler rapidement une variation de brut. Décochez si vous voulez saisir les valeurs exactes depuis votre propre fiche de paie.</p>
+                </div>
+              </div>
+            </details>
+          </div>
+          <button class="reset" id="reset">Réinitialiser la simulation</button>
+        </details>
+      </div>
+    </div>
+
+    <!-- COLONNE DROITE -->
+    <div>
+      <div class="card">
+        <h2>Résultat</h2>
+        <div class="net-readout">
+          <div class="lbl">Net à payer</div>
+          <div class="val mono"><span id="netVal">3 823,58</span><span class="cur">€</span></div>
+          <div class="delta">après impôt — soit <b id="ratio">76,47 %</b> du brut</div>
+        </div>
+        <div class="stats">
+          <div class="stat"><div class="k">Net social</div><div class="v mono" id="sSocial">3 833,64 €</div></div>
+          <div class="stat"><div class="k">Net avant impôt</div><div class="v mono" id="sAvImpot">3 925,74 €</div></div>
+          <div class="stat"><div class="k">Net imposable</div><div class="v mono" id="sImpo">4 086,48 €</div></div>
+          <div class="stat"><div class="k">Impôt (PAS)</div><div class="v mono" id="sPas">102,16 €</div></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:22px">
+        <h2>Décomposition</h2>
+        <div class="wf" id="waterfall"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:22px">
+    <h2>Combien faut-il gagner ? (net cible → brut)</h2>
+    <div class="solver">
+      <div class="pf"><label>Net à payer souhaité</label>
+        <input id="targetNet" class="mono" type="text" value="3 500,00"></div>
+      <button id="solveBtn">Calculer le brut</button>
+    </div>
+    <div class="solver-out" id="solverOut"></div>
+  </div>
+
+  <!-- DETAIL COTISATIONS -->
+  <div class="card" style="margin-top:22px">
+    <div class="detail-head">
+      <h2>Détail des cotisations salariales</h2>
+      <label class="rate-toggle">
+        <input type="checkbox" id="rateEdit">
+        <span>Modifier les taux</span>
+      </label>
+    </div>
+    <p class="tap-hint">Cliquez sur une ligne pour comprendre son sens, sa formule et sa base réglementaire.</p>
+    <table class="tbl">
+      <thead><tr>
+        <th>Cotisation</th><th class="r">Base</th><th class="r">Taux</th><th class="r">Montant salarié</th>
+      </tr></thead>
+      <tbody id="cotBody"></tbody>
+      <tfoot><tr>
+        <td>Total cotisations salariales</td><td></td><td></td><td class="r mono" id="cotTotal"></td>
+      </tr></tfoot>
+    </table>
+  </div>
+
+  <!-- LEXIQUE -->
+  <div class="card" style="margin-top:22px">
+    <h2>Lexique des montants nets</h2>
+    <div id="lexique" class="lexique"></div>
+  </div>
+
+  <div class="card" style="margin-top:22px">
+    <h2>Lexique des abréviations</h2>
+    <div id="abreviations" class="lexique"></div>
+  </div>
+
+  <div class="note">
+    <b>Méthode.</b> Chaque ligne est recalculée à partir de sa base réelle (brut, tranche A ≤ PMSS,
+    tranche B au-delà, ou forfait PMSS) et des taux paramétrés. La CSG/CRDS est assise
+    sur 98,25 % du brut (abattement plafonné à 4 PMSS) augmentée de la part patronale prévoyance/mutuelle.
+    Net imposable et impôt utilisent le taux de PAS saisi.<br>
+    <b>Limites.</b> Estimateur. Les réintégrations de part patronale (sociale, fiscale, CSG) sont
+    supposées constantes ; elles évoluent en réalité légèrement avec les options de couverture. À utiliser
+    pour simuler une variation de brut, pas comme une fiche de paie officielle.
+  </div>
+  </section>
+
+  <section id="retirementPanel" class="tab-panel">
+    <div class="ret-grid">
+      <div>
+        <div class="card">
+          <h2>Hypothèses retraite</h2>
+          <p class="linked-salary">Salaire brut récupéré du simulateur : <b class="mono" id="retLinkedSalary">5 000,00 €</b> / mois</p>
+          <details class="auto-details param-explain">
+            <summary>Comprendre ces hypothèses</summary>
+            <div class="auto-explain">
+              <div>
+                <span class="exp-k">Sens</span>
+                <p>Ces champs décrivent le scénario de départ : génération, début de carrière, âge visé, droits déjà acquis et fiscalité appliquée aux pensions.</p>
+              </div>
+              <div>
+                <span class="exp-k">Calcul</span>
+                <p>Le simulateur estime les trimestres, projette le salaire jusqu'au départ et calcule une pension de base plus une pension complémentaire Agirc-Arrco.</p>
+              </div>
+              <div>
+                <span class="exp-k">Usage</span>
+                <p>Renseignez les trimestres et points réels si vous les connaissez. Sinon, laissez les champs vides pour une estimation automatique simplifiée.</p>
+              </div>
+            </div>
+          </details>
+          <div class="params">
+            <div class="pf"><label>Année de naissance</label>
+              <input id="retBirthYear" class="mono" type="text" value="1985"></div>
+            <div class="pf"><label>Année actuelle</label>
+              <input id="retCurrentYear" class="mono" type="text" value="2026"></div>
+            <div class="pf"><label>Année de début de cotisation</label>
+              <input id="retStartYear" class="mono" type="text" value="2010"></div>
+            <div class="pf"><label>Âge de départ souhaité</label>
+              <input id="retAge" class="mono" type="text" value="64"></div>
+            <div class="pf"><label>Trimestres déjà acquis</label>
+              <input id="retQuarters" class="mono" type="text" value="">
+              <div class="hint">Vide = estimation depuis le début de cotisation</div></div>
+            <div class="pf"><label>Points Agirc-Arrco déjà acquis</label>
+              <input id="retPoints" class="mono" type="text" value="">
+              <div class="hint">Vide = estimation simplifiée sur la carrière</div></div>
+            <div class="pf"><label>Nombre d'enfants</label>
+              <input id="retChildren" class="mono" type="text" value="0">
+              <div class="hint">Majoration de pension si 3 enfants ou plus</div></div>
+            <div class="pf"><label>Trimestres supplémentaires enfants</label>
+              <input id="retChildQuarters" class="mono" type="text" value="0">
+              <div class="hint">À renseigner si vous connaissez vos droits</div></div>
+            <div class="pf"><label>Évolution annuelle du salaire</label>
+              <input id="retGrowth" class="mono" type="text" value="1,50">
+              <div class="hint">Hypothèse jusqu'au départ (%)</div></div>
+            <div class="pf"><label>Salaire annuel moyen</label>
+              <input id="retSam" class="mono" type="text" value="">
+              <div class="hint">Vide = estimation depuis le salaire actuel</div></div>
+            <div class="pf"><label>Situation fiscale</label>
+              <select id="retFamily">
+                <option value="single">Célibataire</option>
+                <option value="couple">Marié / pacsé</option>
+              </select>
+              <div class="hint">Contexte indicatif ; le taux CSG dépend aussi du RFR</div></div>
+            <div class="pf"><label>CSG retraite</label>
+              <select id="retCsg" class="mono">
+                <option value="8.3" selected>Taux normal 8,30 %</option>
+                <option value="6.6">Taux médian 6,60 %</option>
+                <option value="3.8">Taux réduit 3,80 %</option>
+                <option value="0">Exonération 0,00 %</option>
+              </select></div>
+            <div class="pf"><label>PAS retraite</label>
+              <input id="retPas" class="mono" type="text" value="2,50">
+              <div class="hint">Appliqué après prélèvements sociaux (%)</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:22px">
+          <h2>Comprendre l'estimation</h2>
+          <div class="auto-explain">
+            <div>
+              <span class="exp-k">Base</span>
+              <p>La retraite de base est estimée avec le salaire annuel moyen, le taux, la durée validée et la durée requise.</p>
+            </div>
+            <div>
+              <span class="exp-k">Complémentaire</span>
+              <p>La partie Agirc-Arrco convertit les points estimés en pension annuelle avec la valeur de service du point.</p>
+            </div>
+            <div>
+              <span class="exp-k">Limite</span>
+              <p>Le résultat reste indicatif : seul Info Retraite connaît les droits réellement enregistrés sur toute la carrière.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>Résultat retraite estimé</h2>
+          <details class="auto-details param-explain">
+            <summary>Comprendre le résultat</summary>
+            <div class="auto-explain">
+              <div>
+                <span class="exp-k">Sens</span>
+                <p>Le montant brut correspond à l'addition de la retraite de base et de la retraite complémentaire. Le net retire les prélèvements sociaux et le PAS retraite.</p>
+              </div>
+              <div>
+                <span class="exp-k">Comparaison</span>
+                <p>Le taux de remplacement compare la retraite nette estimée au net à payer actuel du simulateur salaire.</p>
+              </div>
+              <div>
+                <span class="exp-k">Prudence</span>
+                <p>Une décote, une surcote, les enfants, les points réels ou l'historique complet des salaires peuvent modifier fortement le résultat final.</p>
+              </div>
+            </div>
+          </details>
+          <div class="ret-kpis">
+            <div class="ret-kpi main"><div class="k">Retraite nette estimée</div><div class="v mono" id="retNetMonthly">-</div></div>
+            <div class="ret-kpi"><div class="k">Retraite brute estimée</div><div class="v mono" id="retGrossMonthly">-</div></div>
+            <div class="ret-kpi"><div class="k">Taux de remplacement net</div><div class="v mono" id="retReplacement">-</div></div>
+            <div class="ret-kpi"><div class="k">Âge légal indicatif</div><div class="v mono" id="retLegalAge">-</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:22px">
+          <h2>Détail de l'estimation</h2>
+          <div class="ret-list" id="retBreakdown"></div>
+        </div>
+
+        <div class="note">
+          <b>Sources.</b> Méthode inspirée des règles publiques Assurance retraite, Service-Public et Agirc-Arrco :
+          retraite de base au taux plein maximal de 50 %, durée requise selon génération, retraite complémentaire par points,
+          prélèvements sociaux retraite selon taux CSG choisi.<br>
+          <b>Important.</b> Cette estimation ne remplace pas le simulateur officiel Info Retraite, qui utilise votre carrière réelle.
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+// ---------- Helpers de formatage FR ----------
+const nf2 = new Intl.NumberFormat('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nf0 = new Intl.NumberFormat('fr-FR',{maximumFractionDigits:0});
+const eur = v => nf2.format(v)+' €';
+const parseFR = s => {
+  if(typeof s!=='string') s=String(s);
+  s = s.replace(/\s|\u00a0/g,'').replace('€','').replace(',', '.');
+  const v = parseFloat(s); return isNaN(v)?0:v;
+};
+const hasValue = id => document.getElementById(id).value.trim() !== '';
+const fmtAge = age => {
+  const years = Math.floor(age);
+  const months = Math.round((age-years)*12);
+  return months ? `${years} ans ${months} mois` : `${years} ans`;
+};
+
+// ---------- Définition des cotisations salariales ----------
+// [groupe, libellé, base, taux %, id]
+const COT = [
+  ['Santé','Complémentaire santé','PMSS',1.538,'mut_forf'],
+  ['Santé','Complémentaire santé TA+TB','BRUT',0.230,'mut_prop'],
+  ['Santé','Sur complémentaire santé','PMSS',0.036,'surcomp'],
+  ['Santé','Complément prévoyance T1','TA',0.390,'prev_t1'],
+  ['Santé','Complément prévoyance T2','TB',0.390,'prev_t2'],
+  ['Retraite','Sécurité Sociale déplafonnée','BRUT',0.400,'viel_deplaf'],
+  ['Retraite','Sécurité Sociale plafonnée','TA',6.900,'viel_plaf'],
+  ['Retraite','Retraite complémentaire T1','TA',4.010,'arrco_t1'],
+  ['Retraite','Retraite complémentaire T2','TB',9.720,'arrco_t2'],
+  ['Retraite','Contribution équilibre technique','BRUT',0.140,'cet'],
+  ['Retraite','Retraite supplémentaire TA','TA',0.200,'supp_ta'],
+  ['Retraite','Retraite supplémentaire TB','TB',0.750,'supp_tb'],
+  ['Chômage / APEC','APEC','BRUT',0.024,'apec'],
+];
+const BASE_LABEL = {PMSS:'1 PMSS', BRUT:'Brut', TA:'Tranche A', TB:'Tranche B'};
+const DEFAULT_CSG_RATES = {csg_ded:6.8, csg_nonded:2.9};
+const rateOverrides = {};
+let ratesEditable = false;
+const getRate = (id, defaultRate) => Object.prototype.hasOwnProperty.call(rateOverrides, id)
+  ? rateOverrides[id]
+  : defaultRate;
+
+// ---------- Explications par ligne : sens, cadre légal/conventionnel, note de calcul ----------
+const EXPL = {
+  mut_forf:{sens:"Couverture frais de santé (mutuelle d'entreprise) : remboursements complémentaires à l'Assurance maladie. Ceci est la part forfaitaire à votre charge du contrat collectif.",
+    calc:"Part forfaitaire assise sur 1 PMSS.",
+    cadre:"Mutuelle collective obligatoire depuis l'ANI du 11 janvier 2013 (loi du 14 juin 2013). L'employeur en finance au moins 50 %. Le niveau de garantie relève du contrat Alstom, dans le cadre de la CCN de la Métallurgie du 7 février 2022."},
+  mut_prop:{sens:"Seconde fraction de la cotisation mutuelle, cette fois proportionnelle au salaire (en sus du forfait).",
+    calc:"Assise sur la totalité du brut.",
+    cadre:"Même base que la mutuelle obligatoire (ANI 2013). Le panachage forfait + proportionnel est propre au contrat d'entreprise."},
+  surcomp:{sens:"Sur-complémentaire santé : garantie renforcée venant au-dessus de la mutuelle de base du régime d'entreprise.",
+    calc:"Assise sur 1 PMSS.",
+    cadre:"Garantie collective propre à l'entreprise, au-delà du socle obligatoire."},
+  prev_t1:{sens:"Prévoyance : couvre les risques lourds (décès, incapacité de travail, invalidité). Voici votre part salariée sur la tranche 1.",
+    calc:"Assise sur la tranche 1 (part du salaire ≤ PMSS).",
+    cadre:"Prévoyance des cadres obligatoire (CCN des cadres du 14 mars 1947, art. 7 ; reprise par l'ANI du 17 nov. 2017). L'employeur doit ≥ 1,50 % de la T1, affecté en priorité (≥ 0,76 %) à la garantie décès. Votre part complète le régime."},
+  prev_t2:{sens:"Même prévoyance (décès / incapacité / invalidité), sur la tranche 2 du salaire.",
+    calc:"Assise sur la tranche 2 (part du salaire entre 1 et 8 PMSS).",
+    cadre:"Régime de prévoyance de branche Métallurgie / contrat d'entreprise. Cotisation déductible du revenu imposable."},
+  viel_deplaf:{sens:"Assurance vieillesse de base (retraite du régime général). Fraction « déplafonnée » assise sur la totalité du salaire.",
+    calc:"Assise sur la totalité du brut.",
+    cadre:"Cotisation vieillesse, Code de la Sécurité sociale. Taux salarié 0,40 %. Côté employeur, le taux est passé à 2,11 % au 1er janvier 2026."},
+  viel_plaf:{sens:"Assurance vieillesse de base, part principale. C'est la cotisation « retraite Sécu » qui valide vos trimestres et droits de base.",
+    calc:"Assise sur la tranche ≤ PMSS uniquement (la part au-dessus n'est pas reprise ici).",
+    cadre:"Cotisation vieillesse plafonnée. Taux salarié 6,90 % / employeur 8,55 %."},
+  arrco_t1:{sens:"Retraite complémentaire obligatoire AGIRC-ARRCO sur la tranche 1. S'ajoute à la retraite de base et génère des points.",
+    calc:"= retraite complémentaire 3,15 % + contribution d'équilibre général (CEG) 0,86 %.",
+    cadre:"Régime unifié AGIRC-ARRCO (fusion 2019). Répartition 40 % salarié / 60 % employeur. La fiche de paie peut regrouper ARRCO + CEG, agrégation autorisée par le BOSS."},
+  arrco_t2:{sens:"Retraite complémentaire AGIRC-ARRCO sur la tranche 2 (part du salaire au-dessus du PMSS).",
+    calc:"= retraite complémentaire 8,64 % + CEG 1,08 %.",
+    cadre:"AGIRC-ARRCO, taux nettement plus élevés en tranche 2 : c'est le principal facteur qui fait baisser le ratio net/brut sur les rémunérations élevées."},
+  cet:{sens:"Contribution d'équilibre technique (CET) du régime AGIRC-ARRCO : solidarité du régime, déclenchée dès que le salaire dépasse 1 PMSS.",
+    calc:"Déclenchée car le brut dépasse le PMSS ; assise alors sur la totalité du salaire.",
+    cadre:"CET AGIRC-ARRCO (créée en 2019). Taux global 0,35 % (0,14 % salarié / 0,21 % employeur). Ne génère aucun point de retraite."},
+  supp_ta:{sens:"Retraite supplémentaire d'entreprise (sur-complémentaire, type « article 83 » / PER d'entreprise) : un 3ᵉ étage de retraite, sur la tranche A.",
+    calc:"Assise sur la tranche A (≤ PMSS).",
+    cadre:"Régime supplémentaire propre à l'entreprise, au-delà des régimes obligatoires. Cotisations déductibles dans les limites de l'article 83 du CGI."},
+  supp_tb:{sens:"Même régime de retraite supplémentaire d'entreprise, sur la tranche B.",
+    calc:"Assise sur la tranche B (1 à 8 PMSS).",
+    cadre:"Régime supplémentaire d'entreprise (article 83 du CGI)."},
+  apec:{sens:"Cotisation des cadres à l'APEC (Association Pour l'Emploi des Cadres) : finance l'accompagnement et les services emploi dédiés aux cadres.",
+    calc:"Assise sur T1+T2 (plafonnée à 4 PMSS).",
+    cadre:"Cotisation obligatoire des cadres, taux global 0,06 % (0,024 % salarié / 0,036 % employeur). Due ici au titre du statut cadre (Groupe G, classe 13)."},
+  csg_ded:{sens:"CSG (Contribution Sociale Généralisée) : finance la protection sociale non contributive (famille, dépendance, une partie de la maladie). Cette fraction de 6,8 % est déductible de votre revenu imposable.",
+    calc:"Assiette = 98,25 % du brut (abattement de 1,75 % pour frais professionnels, plafonné à 4 PMSS) + parts patronales prévoyance/mutuelle réintégrées.",
+    cadre:"CSG, articles L136-1 et suivants du Code de la Sécurité sociale. La part déductible vient diminuer votre net imposable."},
+  csg_nonded:{sens:"CSG non déductible (2,40 %) + CRDS (0,50 %) : ces 2,90 % ne sont pas déductibles et s'ajoutent à votre base d'impôt sur le revenu.",
+    calc:"Même assiette que la CSG déductible. 2,90 % = 2,40 % CSG + 0,50 % CRDS.",
+    cadre:"CSG (Code Sécu) + CRDS (ordonnance du 24 janvier 1996). C'est cette fraction qui explique l'écart entre votre net à payer et votre net imposable."},
+};
+
+// ---------- Barèmes officiels par année (mis à jour annuellement) ----------
+const PMSS_BY_YEAR = {2026:4005.00, 2025:3925.00, 2024:3864.00};
+
+// Lois des réintégrations estimées en fonction de la tranche B.
+const REINT = {
+  rsoc: 2.16,                              // forfait part patronale (≈ constant)
+  rcsg: {a:150.7352, b:0.037220},          // base CSG non abattue ≈ a + b·TB
+  rfisc:{a:101.7911, b:0.003145},          // réintégration fiscale ≈ a + b·TB
+};
+
+// Lexique des agrégats du calcul
+const LEXIQUE = [
+  ['Net social',"Montant légal obligatoire depuis 2023 : brut moins l'ensemble des cotisations sociales salariales. Sert de référence pour le calcul de certaines aides sociales (RSA, prime d'activité)."],
+  ['Indemnités non soumises',"Remboursements (transport domicile-travail, indemnité de télétravail TAD). Exonérés de cotisations et d'impôt : ils s'ajoutent au net sans être taxés."],
+  ['Net avant impôt',"Ce que vous toucheriez avant le prélèvement à la source : net social + indemnités non soumises."],
+  ['Net imposable',"Base sur laquelle l'impôt est calculé. Diffère du net car la CSG/CRDS non déductible et certaines parts patronales y sont réintégrées."],
+  ['Impôt (PAS)',"Prélèvement à la source : votre taux personnalisé, transmis par l'administration fiscale, appliqué au net imposable."],
+];
+
+const ABREVIATIONS = [
+  ['PMSS',"Plafond mensuel de la Sécurité sociale. Il sert de plafond de calcul pour plusieurs cotisations.",'https://www.urssaf.fr/accueil/outils-documentation/taux-baremes/plafonds-securite-sociale.html'],
+  ['TA / TB',"Tranche A : part du salaire jusqu'au PMSS. Tranche B : part du salaire au-dessus du PMSS, dans la limite de 8 PMSS.",'https://www.agirc-arrco.fr/entreprises/mon-entreprise/calculer-et-declarer/le-calcul-des-cotisations-de-retraite-complementaire/'],
+  ['T1 / T2',"Autre écriture de tranche 1 et tranche 2. Dans ce simulateur, T1 correspond à TA et T2 correspond à TB.",'https://www.agirc-arrco.fr/entreprises/mon-entreprise/calculer-et-declarer/le-calcul-des-cotisations-de-retraite-complementaire/'],
+  ['PAS',"Prélèvement à la source de l'impôt sur le revenu, appliqué ici au net imposable.",'https://www.impots.gouv.fr/les-modalites-du-prelevement-la-source-0'],
+  ['CSG',"Contribution sociale généralisée. Elle finance une partie de la protection sociale.",'https://boss.gouv.fr/portail/accueil/regles-dassujettissement/assiette-generale.html'],
+  ['CRDS',"Contribution au remboursement de la dette sociale. Elle est calculée avec la CSG non déductible.",'https://boss.gouv.fr/portail/accueil/regles-dassujettissement/assiette-generale.html'],
+  ['APEC',"Association Pour l'Emploi des Cadres. La cotisation concerne les salariés cadres.",'https://corporate.apec.fr/home/notre-vision/qui-sommes-nous.html'],
+  ['AGIRC-ARRCO',"Régime obligatoire de retraite complémentaire des salariés du secteur privé.",'https://www.agirc-arrco.fr/entreprises/mon-entreprise/calculer-et-declarer/le-calcul-des-cotisations-de-retraite-complementaire/'],
+  ['CEG',"Contribution d'équilibre général du régime AGIRC-ARRCO.",'https://www.agirc-arrco.fr/entreprises/mon-entreprise/calculer-et-declarer/le-calcul-des-cotisations-de-retraite-complementaire/'],
+  ['CET',"Contribution d'équilibre technique du régime AGIRC-ARRCO, due quand le salaire dépasse le PMSS.",'https://www.agirc-arrco.fr/entreprises/mon-entreprise/calculer-et-declarer/le-calcul-des-cotisations-de-retraite-complementaire/'],
+  ['TAD',"Télétravail à domicile. Ici, l'indemnité TAD est traitée comme non soumise.",'https://www.urssaf.fr/accueil/employeur/beneficier-exonerations/frais-professionnels.html'],
+  ['ANI',"Accord national interprofessionnel. Il peut fixer des règles applicables aux entreprises.",'https://www.service-public.fr/particuliers/vosdroits/F20739'],
+  ['CCN',"Convention collective nationale. Ici, il s'agit notamment de la convention de la Métallurgie.",'https://www.legifrance.gouv.fr/conv_coll/id/KALICONT000046993250'],
+  ['BOSS',"Bulletin officiel de la Sécurité sociale, référence administrative sur les règles de cotisations.",'https://boss.gouv.fr/portail/accueil.html'],
+  ['PER',"Plan d'épargne retraite. Certaines retraites supplémentaires d'entreprise peuvent s'y rattacher.",'https://www.service-public.fr/particuliers/vosdroits/F34982'],
+  ['CGI',"Code général des impôts.",'https://www.legifrance.gouv.fr/codes/id/LEGITEXT000006069577/'],
+  ['RSA',"Revenu de solidarité active. Le net social peut servir de référence pour certaines aides comme le RSA.",'https://www.service-public.fr/particuliers/vosdroits/N19775'],
+];
+
+// ---------- Moteur de calcul ----------
+function calc(brut, p){
+  const brutSS = brut + p.rsoc;
+  const TA = Math.min(brutSS, p.pmss);
+  const TB = Math.max(0, Math.min(brutSS - p.pmss, 7*p.pmss));
+  const bases = {PMSS:p.pmss, BRUT:brutSS, TA, TB};
+
+  // Réintégrations : auto (loi en TB) ou valeurs manuelles
+  const rcsg  = p.auto ? REINT.rcsg.a  + REINT.rcsg.b*TB  : p.rcsg;
+  const rfisc = p.auto ? REINT.rfisc.a + REINT.rfisc.b*TB : p.rfisc;
+
+  const lines = [];
+  let totalCot = 0;
+  for(const [grp,lib,b,t0,id] of COT){
+    const t = getRate(id, t0);
+    const m = bases[b]*t/100;
+    totalCot += m;
+    lines.push({grp,lib,base:b,baseVal:bases[b],taux:t,mont:m,id});
+  }
+  // CSG / CRDS
+  const abattue = 0.9825*Math.min(brut,4*p.pmss) + Math.max(0,brut-4*p.pmss);
+  const csgBase = abattue + rcsg;
+  const csgDedRate = getRate('csg_ded', DEFAULT_CSG_RATES.csg_ded);
+  const csgNonDedRate = getRate('csg_nonded', DEFAULT_CSG_RATES.csg_nonded);
+  const csgDed = csgBase*csgDedRate/100;
+  const csgNonDed = csgBase*csgNonDedRate/100;
+  totalCot += csgDed + csgNonDed;
+  lines.push({grp:'CSG / CRDS',lib:'CSG déductible',base:'CSG',baseVal:csgBase,taux:csgDedRate,mont:csgDed,id:'csg_ded'});
+  lines.push({grp:'CSG / CRDS',lib:'CSG/CRDS non déductible',base:'CSG',baseVal:csgBase,taux:csgNonDedRate,mont:csgNonDed,id:'csg_nonded'});
+
+  const netSocial   = brut - totalCot;
+  const netAvImpot  = netSocial + p.indem;
+  const deductible  = totalCot - csgNonDed;
+  const netImpo     = brut - deductible + rfisc;
+  const pas         = netImpo * p.pas/100;
+  const net         = netAvImpot - pas;
+
+  // Sous-totaux par groupe
+  const grpTot = {};
+  for(const l of lines){ grpTot[l.grp]=(grpTot[l.grp]||0)+l.mont; }
+
+  return {brut,brutSS,TB,rcsg,rfisc,lines,grpTot,totalCot,netSocial,netAvImpot,netImpo,pas,net,
+          cotSante:grpTot['Santé'], cotRetraite:grpTot['Retraite'],
+          cotChom:grpTot['Chômage / APEC'], cotCsg:grpTot['CSG / CRDS']};
+}
+
+// ---------- Lecture des paramètres ----------
+function readParams(){
+  return {
+    pmss:  parseFR(document.getElementById('pmss').value),
+    pas:   parseFR(document.getElementById('pas').value),
+    indem: parseFR(document.getElementById('transport').value) + parseFR(document.getElementById('tad').value),
+    rsoc:  parseFR(document.getElementById('rsoc').value),
+    rfisc: parseFR(document.getElementById('rfisc').value),
+    rcsg:  parseFR(document.getElementById('rcsg').value),
+    auto:  document.getElementById('autoReint').checked,
+  };
+}
+
+// ---------- Rendu ----------
+function render(){
+  const brut = parseFR(document.getElementById('brut').value);
+  const p = readParams();
+  const r = calc(brut, p);
+
+  // Mode auto : afficher les valeurs calculées dans les champs (désactivés)
+  const rfiscEl = document.getElementById('rfisc'), rcsgEl = document.getElementById('rcsg');
+  rfiscEl.disabled = p.auto; rcsgEl.disabled = p.auto;
+  if(p.auto){
+    rfiscEl.value = nf2.format(r.rfisc); rcsgEl.value = nf2.format(r.rcsg);
+    document.getElementById('rfiscHint').textContent = 'calculé selon la tranche B';
+    document.getElementById('rcsgHint').textContent  = 'calculé selon la tranche B';
+  } else {
+    document.getElementById('rfiscHint').textContent = 'valeur fixe (manuelle)';
+    document.getElementById('rcsgHint').textContent  = 'valeur fixe (manuelle)';
+  }
+
+  document.getElementById('netVal').textContent = nf2.format(r.net);
+  document.getElementById('ratio').textContent = nf2.format(r.net/brut*100)+' %';
+  document.getElementById('sSocial').textContent = eur(r.netSocial);
+  document.getElementById('sAvImpot').textContent = eur(r.netAvImpot);
+  document.getElementById('sImpo').textContent = eur(r.netImpo);
+  document.getElementById('sPas').textContent = eur(r.pas);
+  renderRetirement();
+
+  // Waterfall
+  const wf = document.getElementById('waterfall');
+  const rows = [
+    ['head','Salaire brut', brut, null],
+    ['debit','Santé', -r.cotSante, '1'],
+    ['debit','Retraite', -r.cotRetraite, '2'],
+    ['debit','Chômage / APEC', -r.cotChom, '3'],
+    ['debit','CSG / CRDS', -r.cotCsg, '4'],
+    ['total','Net social', r.netSocial, null],
+    ['add','Indemnités non soumises', p.indem, null],
+    ['plain','Net avant impôt', r.netAvImpot, null],
+    ['debit','Impôt prélevé à la source', -r.pas, null],
+    ['grand','Net à payer', r.net, null],
+  ];
+  wf.innerHTML = rows.map(([cls,nm,amt,tag])=>{
+    const sign = (cls==='debit'?'− ':(cls==='add'?'+ ':''));
+    const t = tag?`<span class="tag mono">${tag}</span>`:'<span class="tag"></span>';
+    return `<div class="wf-row ${cls}">
+      <span class="nm">${t}${nm}</span>
+      <span class="amt mono">${sign}${nf2.format(Math.abs(amt))} €</span></div>`;
+  }).join('');
+
+  // Tableau détaillé
+  const body = document.getElementById('cotBody');
+  let html='', lastGrp='';
+  for(const l of r.lines){
+    if(l.grp!==lastGrp){ html+=`<tr class="grp"><td colspan="4">${l.grp}</td></tr>`; lastGrp=l.grp; }
+    const baseTxt = l.base==='CSG' ? 'Assiette CSG' : BASE_LABEL[l.base];
+    const e = EXPL[l.id] || {};
+    const calcLine = `${baseTxt} ${nf2.format(l.baseVal)} € × ${nf2.format(l.taux)} % = ${nf2.format(l.mont)} €`;
+    const tauxCell = ratesEditable
+      ? `<input class="rate-input mono" type="text" inputmode="decimal" data-id="${l.id}" value="${nf2.format(l.taux)}" aria-label="Taux ${l.lib}"> %`
+      : `${nf2.format(l.taux)} %`;
+    html += `<tr class="cot-row" data-id="${l.id}">
+      <td><span class="chev">▸</span>${l.lib}</td>
+      <td class="r base mono">${nf2.format(l.baseVal)} <span style="opacity:.6">(${baseTxt})</span></td>
+      <td class="r taux mono">${tauxCell}</td>
+      <td class="r mont mono">${nf2.format(l.mont)} €</td></tr>
+      <tr class="exp-row" data-for="${l.id}"><td colspan="4"><div class="exp-inner">
+        <div class="exp-block"><span class="exp-k">Sens</span><p>${e.sens||''}</p></div>
+        <div class="exp-block"><span class="exp-k">Calcul</span>
+          <p class="mono exp-formula">${calcLine}</p>
+          ${e.calc?`<p class="exp-sub">${e.calc}</p>`:''}</div>
+        <div class="exp-block"><span class="exp-k">Cadre légal / conventionnel</span><p>${e.cadre||''}</p></div>
+      </div></td></tr>`;
+  }
+  body.innerHTML = html;
+  document.getElementById('cotTotal').textContent = eur(r.totalCot);
+  // restaurer l'état déplié après re-render
+  openRows.forEach(id=>{
+    const row = body.querySelector(`.cot-row[data-id="${id}"]`);
+    const exp = body.querySelector(`.exp-row[data-for="${id}"]`);
+    if(row&&exp){ row.classList.add('open'); exp.classList.add('open'); }
+  });
+}
+
+// ---------- Solveur inverse (net cible → brut) ----------
+function solve(){
+  const target = parseFR(document.getElementById('targetNet').value);
+  const p = readParams();
+  let lo=1000, hi=60000;
+  if(calc(lo,p).net > target || calc(hi,p).net < target){
+    document.getElementById('solverOut').innerHTML =
+      'Cible hors de la plage simulable.'; return;
+  }
+  for(let i=0;i<60;i++){ const mid=(lo+hi)/2; (calc(mid,p).net<target)?lo=mid:hi=mid; }
+  const brut=(lo+hi)/2;
+  document.getElementById('solverOut').innerHTML =
+    `Brut mensuel requis : <b>${eur(brut)}</b> &nbsp;·&nbsp; soit ${eur(brut*12)} brut annuel.`;
+}
+
+// ---------- Simulateur retraite ----------
+const RETIREMENT = {
+  agircServicePoint: 1.4386,
+  agircPurchasePoint: 20.1877,
+  fullRate: 50,
+};
+
+function retirementRule(birthYear){
+  if(birthYear <= 1960) return {legalAge:62, required:167};
+  if(birthYear === 1961) return {legalAge:62.25, required:169};
+  if(birthYear === 1962) return {legalAge:62.5, required:169};
+  if(birthYear === 1963) return {legalAge:62.75, required:170};
+  if(birthYear === 1964) return {legalAge:63, required:171};
+  if(birthYear === 1965) return {legalAge:63.25, required:172};
+  if(birthYear === 1966) return {legalAge:63.5, required:172};
+  if(birthYear === 1967) return {legalAge:63.75, required:172};
+  return {legalAge:64, required:172};
+}
+
+function agircPointsFromSalary(annualSalary, pass){
+  const tranche1 = Math.min(annualSalary, pass);
+  const tranche2 = Math.max(0, Math.min(annualSalary-pass, 7*pass));
+  const pointCot = tranche1*0.062 + tranche2*0.17;
+  return pointCot / RETIREMENT.agircPurchasePoint;
+}
+
+function renderRetirement(){
+  const salaryMonthly = parseFR(document.getElementById('brut').value);
+  const salaryAnnual = salaryMonthly*12;
+  const currentNet = calc(salaryMonthly, readParams()).net;
+  const birthYear = Math.round(parseFR(document.getElementById('retBirthYear').value));
+  const currentYear = Math.round(parseFR(document.getElementById('retCurrentYear').value));
+  const startYear = Math.round(parseFR(document.getElementById('retStartYear').value));
+  const retirementAge = parseFR(document.getElementById('retAge').value);
+  const children = Math.max(0, Math.round(parseFR(document.getElementById('retChildren').value)));
+  const childQuarters = Math.max(0, Math.round(parseFR(document.getElementById('retChildQuarters').value)));
+  const growth = parseFR(document.getElementById('retGrowth').value)/100;
+  const retPas = parseFR(document.getElementById('retPas').value);
+  const csgRate = parseFR(document.getElementById('retCsg').value);
+  const familyLabel = document.getElementById('retFamily').selectedOptions[0].textContent;
+  const p = readParams();
+  const pass = p.pmss*12;
+
+  document.getElementById('retLinkedSalary').textContent = eur(salaryMonthly);
+
+  if(!birthYear || !currentYear || !startYear || !retirementAge || salaryMonthly <= 0){
+    return;
+  }
+
+  const rule = retirementRule(birthYear);
+  const currentAge = currentYear - birthYear;
+  const yearsToRetirement = Math.max(0, retirementAge - currentAge);
+  const retirementYear = birthYear + retirementAge;
+  const careerYearsAtRetirement = Math.max(0, retirementYear - startYear);
+  const estimatedQuarters = Math.floor(careerYearsAtRetirement*4) + childQuarters;
+  const acquiredQuarters = hasValue('retQuarters')
+    ? Math.round(parseFR(document.getElementById('retQuarters').value)) + Math.floor(yearsToRetirement*4) + childQuarters
+    : estimatedQuarters;
+  const quarters = Math.max(0, acquiredQuarters);
+
+  const projectedSalary = salaryAnnual * Math.pow(1+growth, yearsToRetirement);
+  const sam = hasValue('retSam') ? parseFR(document.getElementById('retSam').value) : projectedSalary;
+  const samRetained = Math.min(sam, pass);
+  const missingByDuration = Math.max(0, rule.required - quarters);
+  const missingByAge = retirementAge < 67 ? Math.max(0, Math.ceil((67-retirementAge)*4)) : 0;
+  const decoteQuarters = retirementAge >= 67 ? 0 : Math.min(20, missingByDuration, missingByAge || missingByDuration);
+  const baseRate = Math.max(37.5, RETIREMENT.fullRate - decoteQuarters*0.625);
+  const prorata = rule.required ? Math.min(quarters, rule.required)/rule.required : 1;
+  const surcoteQuarters = retirementAge > rule.legalAge && quarters > rule.required
+    ? Math.floor(quarters - rule.required)
+    : 0;
+  const surcoteFactor = 1 + surcoteQuarters*0.0125;
+  const childMajoration = children >= 3 ? 0.10 : 0;
+
+  const baseAnnual = samRetained * baseRate/100 * prorata * surcoteFactor * (1+childMajoration);
+  const annualPoints = agircPointsFromSalary(salaryAnnual, pass);
+  const points = hasValue('retPoints')
+    ? parseFR(document.getElementById('retPoints').value) + annualPoints*yearsToRetirement
+    : annualPoints*careerYearsAtRetirement;
+  const compAnnual = points * RETIREMENT.agircServicePoint * (1+childMajoration);
+  const grossAnnual = baseAnnual + compAnnual;
+  const grossMonthly = grossAnnual/12;
+
+  const crdsRate = csgRate > 0 ? 0.5 : 0;
+  const casaRate = csgRate >= 6.6 ? 0.3 : 0;
+  const socialRate = csgRate + crdsRate + casaRate;
+  const netBeforeTax = grossMonthly * (1-socialRate/100);
+  const netMonthly = netBeforeTax * (1-retPas/100);
+  const replacement = currentNet > 0 ? netMonthly/currentNet*100 : 0;
+
+  document.getElementById('retNetMonthly').textContent = eur(netMonthly);
+  document.getElementById('retGrossMonthly').textContent = eur(grossMonthly);
+  document.getElementById('retReplacement').textContent = nf2.format(replacement)+' %';
+  document.getElementById('retLegalAge').textContent = fmtAge(rule.legalAge);
+
+  const rows = [
+    ['Départ simulé', `${fmtAge(retirementAge)} (${nf0.format(retirementYear)})`],
+    ['Trimestres estimés', `${nf0.format(quarters)} / ${nf0.format(rule.required)}`],
+    ['Décote retenue', decoteQuarters ? `${nf0.format(decoteQuarters)} trimestre(s)` : 'Aucune'],
+    ['Surcote indicative', surcoteQuarters ? `${nf0.format(surcoteQuarters)} trimestre(s)` : 'Aucune'],
+    ['Salaire annuel moyen retenu', eur(samRetained)],
+    ['Retraite de base brute', eur(baseAnnual/12)],
+    ['Points Agirc-Arrco estimés', nf2.format(points)],
+    ['Retraite Agirc-Arrco brute', eur(compAnnual/12)],
+    ['Situation fiscale', familyLabel],
+    ['Prélèvements sociaux retraite', nf2.format(socialRate)+' %'],
+    ['PAS retraite', nf2.format(retPas)+' %'],
+  ];
+  document.getElementById('retBreakdown').innerHTML = rows.map(([k,v])=>
+    `<div class="ret-row"><span>${k}</span><b class="mono">${v}</b></div>`).join('');
+}
+
+// ---------- Liaisons ----------
+const brutInput = document.getElementById('brut');
+const brutRange = document.getElementById('brutRange');
+const openRows = new Set();
+
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+    renderRetirement();
+  });
+});
+
+// Délégation : clic sur une ligne de cotisation = déplie/replie son explication
+document.getElementById('cotBody').addEventListener('click', e=>{
+  if(e.target.closest('.rate-input')) return;
+  const row = e.target.closest('.cot-row');
+  if(!row) return;
+  const id = row.dataset.id;
+  const exp = document.querySelector(`.exp-row[data-for="${id}"]`);
+  if(openRows.has(id)){ openRows.delete(id); row.classList.remove('open'); exp.classList.remove('open'); }
+  else{ openRows.add(id); row.classList.add('open'); exp.classList.add('open'); }
+});
+
+document.getElementById('cotBody').addEventListener('input', e=>{
+  const input = e.target.closest('.rate-input');
+  if(!input) return;
+  const id = input.dataset.id;
+  const raw = input.value;
+  const value = parseFR(input.value);
+  if(Number.isFinite(value) && value >= 0) rateOverrides[id] = value;
+  render();
+  const nextInput = document.querySelector(`.rate-input[data-id="${id}"]`);
+  if(nextInput){
+    nextInput.focus();
+    nextInput.value = raw;
+    nextInput.setSelectionRange(raw.length, raw.length);
+  }
+});
+
+document.getElementById('cotBody').addEventListener('blur', e=>{
+  const input = e.target.closest('.rate-input');
+  if(!input) return;
+  input.value = nf2.format(parseFR(input.value));
+}, true);
+
+document.getElementById('rateEdit').addEventListener('change', e=>{
+  ratesEditable = e.target.checked;
+  render();
+});
+
+brutInput.addEventListener('input', ()=>{ brutRange.value=parseFR(brutInput.value)||0; render(); });
+brutInput.addEventListener('blur', ()=>{ brutInput.value=nf2.format(parseFR(brutInput.value)); render(); });
+brutRange.addEventListener('input', ()=>{ brutInput.value=nf2.format(parseFR(brutRange.value)); render(); });
+
+// Année → remplit le PMSS automatiquement
+document.getElementById('annee').addEventListener('change', e=>{
+  const pmss = PMSS_BY_YEAR[e.target.value];
+  if(pmss) document.getElementById('pmss').value = nf2.format(pmss);
+  render();
+});
+
+['pmss','pas','transport','tad','rsoc','rfisc','rcsg'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', render);
+});
+document.getElementById('autoReint').addEventListener('change', render);
+document.getElementById('solveBtn').addEventListener('click', solve);
+document.getElementById('targetNet').addEventListener('keydown', e=>{ if(e.key==='Enter') solve(); });
+
+['retBirthYear','retCurrentYear','retStartYear','retAge','retQuarters','retPoints','retChildren',
+ 'retChildQuarters','retGrowth','retSam','retFamily','retCsg','retPas'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', renderRetirement);
+  document.getElementById(id).addEventListener('change', renderRetirement);
+});
+
+// Lexique des agrégats
+document.getElementById('lexique').innerHTML = LEXIQUE.map(([k,v])=>
+  `<div class="lex-item"><span class="lex-k">${k}</span><span class="lex-v">${v}</span></div>`).join('');
+
+document.getElementById('abreviations').innerHTML = ABREVIATIONS.map(([k,v,url])=>
+  `<div class="lex-item"><span class="lex-k mono">${k}</span><span class="lex-v">${v}${url?` <a href="${url}" target="_blank" rel="noopener">source officielle</a>`:''}</span></div>`).join('');
+
+const DEFAULTS = {brut:'5 000,00',pmss:'4 005,00',pas:'2,50',transport:'68,10',tad:'24,00',
+  rsoc:'2,16',rfisc:'104,93',rcsg:'187,85'};
+document.getElementById('reset').addEventListener('click', ()=>{
+  for(const k in DEFAULTS) document.getElementById(k).value=DEFAULTS[k];
+  for(const k in rateOverrides) delete rateOverrides[k];
+  document.getElementById('annee').value='2026';
+  document.getElementById('autoReint').checked=true;
+  document.getElementById('rateEdit').checked=false;
+  ratesEditable=false;
+  brutRange.value=5000; render();
+});
+
+render();
+</script>
+</body>
+</html>
