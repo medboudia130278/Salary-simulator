@@ -845,7 +845,7 @@ function solve(){
   for(let i=0;i<60;i++){ const mid=(lo+hi)/2; (calc(mid,p).net<target)?lo=mid:hi=mid; }
   const brut=(lo+hi)/2;
   document.getElementById('solverOut').innerHTML =
-    `Brut mensuel requis : <b>${eur(brut)}</b> &nbsp;·&nbsp; soit ${eur(brut*12)} brut annuel.`;
+    `Brut mensuel requis : <b>${eur(brut)}</b> &nbsp;·&nbsp; soit ${eur(brut*13)} brut annuel sur 13 mois.`;
 }
 
 // ---------- Simulateur retraite ----------
