@@ -491,7 +491,7 @@
               <div class="hint">Hypothèse jusqu'au départ (%)</div></div>
             <div class="pf"><label>Salaire annuel moyen</label>
               <input id="retSam" class="mono" type="text" value="">
-              <div class="hint">Vide = estimation depuis le salaire actuel</div></div>
+              <div class="hint" id="retSamHint">Estimé automatiquement depuis le salaire actuel</div></div>
             <div class="pf"><label>Situation fiscale</label>
               <select id="retFamily">
                 <option value="single">Célibataire</option>
@@ -889,7 +889,7 @@ const RET_EXPL = {
     calc:"Surcote indicative : 1,25 % par trimestre supplémentaire retenu.",
     limite:"Le simulateur applique une règle simplifiée et ne remplace pas le relevé officiel."},
   sam:{sens:"Salaire annuel moyen retenu pour la retraite de base.",
-    calc:"Par défaut, il est estimé depuis le salaire actuel projeté, puis plafonné au PASS annuel. Vous pouvez saisir une valeur manuelle.",
+    calc:"Le champ est prérempli automatiquement depuis le salaire actuel projeté, puis le montant retenu est plafonné au PASS annuel. Si vous modifiez le champ, votre valeur manuelle remplace l'estimation.",
     limite:"La vraie retraite de base utilise les 25 meilleures années revalorisées, ce que ce simulateur ne reconstitue pas."},
   base:{sens:"Part de pension versée par le régime général de retraite.",
     calc:"Salaire annuel moyen retenu × taux × prorata trimestres × éventuelle surcote/majoration enfants.",
@@ -976,7 +976,14 @@ function renderRetirement(){
   const quarters = Math.max(0, acquiredQuarters);
 
   const projectedSalary = salaryAnnual * Math.pow(1+growth, yearsToRetirement);
-  const sam = hasValue('retSam') ? parseFR(document.getElementById('retSam').value) : projectedSalary;
+  const retSamEl = document.getElementById('retSam');
+  if(retSamAuto){
+    retSamEl.value = nf2.format(projectedSalary);
+    document.getElementById('retSamHint').textContent = 'Estimé automatiquement depuis le salaire actuel';
+  } else {
+    document.getElementById('retSamHint').textContent = 'Valeur manuelle utilisée';
+  }
+  const sam = retSamAuto ? projectedSalary : parseFR(retSamEl.value);
   const samRetained = Math.min(sam, pass);
   const missingByDuration = Math.max(0, rule.required - quarters);
   const missingByAge = retirementAge < 67 ? Math.max(0, Math.ceil((67-retirementAge)*4)) : 0;
@@ -1052,6 +1059,7 @@ const openRows = new Set();
 const retOpenRows = new Set();
 let retQuartersAuto = true;
 let retPointsAuto = true;
+let retSamAuto = true;
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -1129,7 +1137,7 @@ document.getElementById('solveBtn').addEventListener('click', solve);
 document.getElementById('targetNet').addEventListener('keydown', e=>{ if(e.key==='Enter') solve(); });
 
 ['retBirthYear','retCurrentYear','retStartYear','retAge','retChildren',
- 'retChildQuarters','retGrowth','retSam','retFamily','retCsg','retPas'].forEach(id=>{
+ 'retChildQuarters','retGrowth','retFamily','retCsg','retPas'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderRetirement);
   document.getElementById(id).addEventListener('change', renderRetirement);
 });
@@ -1140,6 +1148,10 @@ document.getElementById('retQuarters').addEventListener('input', e=>{
 });
 document.getElementById('retPoints').addEventListener('input', e=>{
   retPointsAuto = e.target.value.trim() === '';
+  renderRetirement();
+});
+document.getElementById('retSam').addEventListener('input', e=>{
+  retSamAuto = e.target.value.trim() === '';
   renderRetirement();
 });
 
@@ -1161,6 +1173,7 @@ document.getElementById('reset').addEventListener('click', ()=>{
   ratesEditable=false;
   retQuartersAuto=true;
   retPointsAuto=true;
+  retSamAuto=true;
   brutRange.value=5000; render();
 });
 
