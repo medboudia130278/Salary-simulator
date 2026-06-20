@@ -509,6 +509,26 @@
               <input id="retPas" class="mono" type="text" value="2,50">
               <div class="hint">Appliqué après prélèvements sociaux (%)</div></div>
           </div>
+
+          <details class="auto-details param-explain">
+            <summary>Calcul des points et du salaire annuel moyen</summary>
+            <div class="auto-explain">
+              <div>
+                <span class="exp-k">Points Agirc-Arrco</span>
+                <p>Le simulateur estime les points déjà acquis avec le salaire actuel, les tranches Agirc-Arrco et la durée déjà cotisée.</p>
+                <p class="mono formula">points ≈ cotisations génératrices de points ÷ prix d'achat du point</p>
+              </div>
+              <div>
+                <span class="exp-k">Salaire annuel moyen</span>
+                <p>Le champ est estimé depuis le salaire brut actuel projeté jusqu'à l'âge de départ, puis plafonné au PASS pour le calcul de la retraite de base.</p>
+                <p class="mono formula">SAM estimé ≈ brut annuel actuel × (1 + évolution) ^ années restantes</p>
+              </div>
+              <div>
+                <span class="exp-k">À corriger si possible</span>
+                <p>Ces deux estimations restent simplifiées. Les valeurs les plus fiables sont celles du relevé officiel Info Retraite : points réels et salaires annuels historiques.</p>
+              </div>
+            </div>
+          </details>
         </div>
 
         <div class="card" style="margin-top:22px">
