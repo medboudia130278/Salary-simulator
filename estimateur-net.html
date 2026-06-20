@@ -515,13 +515,15 @@
             <div class="auto-explain">
               <div>
                 <span class="exp-k">Points Agirc-Arrco</span>
-                <p>Le simulateur estime les points déjà acquis avec le salaire actuel, les tranches Agirc-Arrco et la durée déjà cotisée.</p>
-                <p class="mono formula">points ≈ cotisations génératrices de points ÷ prix d'achat du point</p>
+                <p>Le simulateur découpe le salaire annuel en tranche 1 et tranche 2. Seule la partie dite « taux de calcul des points » sert à acheter des points : 6,20 % en T1 et 17,00 % en T2.</p>
+                <p class="mono formula">points/an ≈ (T1 × 6,20 % + T2 × 17,00 %) ÷ 20,1877 €</p>
+                <p class="exp-sub">20,1877 € est le prix d'achat du point utilisé ici. Les cotisations appelées sont plus élevées, mais l'écart finance le régime et ne donne pas de points.</p>
               </div>
               <div>
                 <span class="exp-k">Salaire annuel moyen</span>
                 <p>Le champ est estimé depuis le salaire brut actuel projeté jusqu'à l'âge de départ, puis plafonné au PASS pour le calcul de la retraite de base.</p>
                 <p class="mono formula">SAM estimé ≈ brut annuel actuel × (1 + évolution) ^ années restantes</p>
+                <p class="exp-sub">Le simulateur ne reconstitue pas les 25 meilleures années réelles ; il utilise cette projection comme approximation.</p>
               </div>
               <div>
                 <span class="exp-k">À corriger si possible</span>
@@ -915,8 +917,8 @@ const RET_EXPL = {
     calc:"Salaire annuel moyen retenu × taux × prorata trimestres × éventuelle surcote/majoration enfants.",
     limite:"C'est une estimation pédagogique, sensible au salaire annuel moyen et aux trimestres réellement validés."},
   points:{sens:"Nombre de points Agirc-Arrco estimés à la date de départ.",
-    calc:"Points déjà acquis estimés automatiquement jusqu'à l'année actuelle, puis ajout des points futurs estimés jusqu'au départ. Si vous modifiez le champ, votre valeur manuelle remplace l'estimation des acquis.",
-    limite:"Les points réels dépendent de chaque année cotisée et figurent sur le relevé officiel Info Retraite."},
+    calc:"Pour chaque année estimée : points ≈ (tranche 1 × 6,20 % + tranche 2 × 17,00 %) ÷ 20,1877 €. Les points déjà acquis sont estimés jusqu'à l'année actuelle, puis les points futurs sont ajoutés jusqu'au départ.",
+    limite:"Les points réels dépendent de chaque année cotisée, des taux exacts de l'entreprise et des périodes particulières. Ils figurent sur le relevé officiel Info Retraite."},
   comp:{sens:"Part de pension issue de la retraite complémentaire Agirc-Arrco.",
     calc:"Points Agirc-Arrco estimés × valeur annuelle de service du point.",
     limite:"Ne tient pas compte de tous les cas particuliers ni des évolutions futures de la valeur du point."},
