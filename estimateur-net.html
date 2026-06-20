@@ -224,9 +224,21 @@
   .ret-kpi.main .v{color:var(--net);font-size:24px}
   .ret-list{display:flex;flex-direction:column;gap:2px}
   .ret-row{display:flex;align-items:center;justify-content:space-between;gap:14px;
-    padding:10px 12px;border-radius:7px;background:var(--panel2);font-size:12.5px}
+    padding:10px 12px;border-radius:7px;background:var(--panel2);font-size:12.5px;
+    cursor:pointer;transition:background .12s}
+  .ret-row:hover{background:#202a35}
+  .ret-row.open{border-radius:7px 7px 0 0}
+  .ret-row.open .chev{transform:rotate(90deg)}
   .ret-row span:first-child{color:var(--muted)}
   .ret-row b{font-weight:700;color:var(--txt)}
+  .ret-exp{display:none;background:var(--panel2);border-left:2px solid var(--copper);
+    border-radius:0 0 8px 8px;padding:14px 16px;margin:-2px 0 8px}
+  .ret-exp.open{display:block}
+  .ret-exp-inner{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  @media(max-width:720px){.ret-exp-inner{grid-template-columns:1fr;gap:12px}}
+  .ret-exp .exp-k{font-size:9.5px;letter-spacing:1px;text-transform:uppercase;color:var(--copper);
+    font-weight:700;display:block;margin-bottom:6px}
+  .ret-exp p{font-size:12px;line-height:1.55;color:var(--txt);opacity:.92}
   .linked-salary{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px}
   .linked-salary b{color:var(--net);font-size:16px}
 
@@ -855,6 +867,45 @@ const RETIREMENT = {
   fullRate: 50,
 };
 
+const RET_EXPL = {
+  depart:{sens:"Âge et année de départ utilisés pour projeter les droits retraite.",
+    calc:"Année de départ = année de naissance + âge de départ souhaité.",
+    limite:"Ne détecte pas encore les cas particuliers comme carrière longue, handicap ou pénibilité."},
+  quarters:{sens:"Nombre de trimestres pris en compte à la date de départ simulée.",
+    calc:"Si les trimestres acquis sont vides : estimation depuis l'année de début de cotisation. Sinon : trimestres acquis + trimestres futurs + trimestres enfants saisis.",
+    limite:"Les périodes de chômage, maladie, service national ou temps partiel ne sont pas détaillées."},
+  decote:{sens:"Réduction appliquée quand le départ est avant le taux plein et qu'il manque des trimestres.",
+    calc:"Décote indicative : 0,625 point de taux par trimestre manquant, plafonnée à 20 trimestres.",
+    limite:"Le calcul exact dépend de la génération et de la comparaison entre trimestres manquants et âge du taux plein automatique."},
+  surcote:{sens:"Majoration possible si vous continuez après l'âge légal avec plus de trimestres que requis.",
+    calc:"Surcote indicative : 1,25 % par trimestre supplémentaire retenu.",
+    limite:"Le simulateur applique une règle simplifiée et ne remplace pas le relevé officiel."},
+  sam:{sens:"Salaire annuel moyen retenu pour la retraite de base.",
+    calc:"Par défaut, il est estimé depuis le salaire actuel projeté, puis plafonné au PASS annuel. Vous pouvez saisir une valeur manuelle.",
+    limite:"La vraie retraite de base utilise les 25 meilleures années revalorisées, ce que ce simulateur ne reconstitue pas."},
+  base:{sens:"Part de pension versée par le régime général de retraite.",
+    calc:"Salaire annuel moyen retenu × taux × prorata trimestres × éventuelle surcote/majoration enfants.",
+    limite:"C'est une estimation pédagogique, sensible au salaire annuel moyen et aux trimestres réellement validés."},
+  points:{sens:"Nombre de points Agirc-Arrco estimés à la date de départ.",
+    calc:"Si les points acquis sont vides : estimation simplifiée sur la carrière. Sinon : points acquis + points futurs estimés.",
+    limite:"Les points réels dépendent de chaque année cotisée et figurent sur le relevé officiel Info Retraite."},
+  comp:{sens:"Part de pension issue de la retraite complémentaire Agirc-Arrco.",
+    calc:"Points Agirc-Arrco estimés × valeur annuelle de service du point.",
+    limite:"Ne tient pas compte de tous les cas particuliers ni des évolutions futures de la valeur du point."},
+  family:{sens:"Situation familiale indicative utilisée comme contexte fiscal.",
+    calc:"Elle est affichée dans le détail mais ne calcule pas automatiquement le taux de CSG.",
+    limite:"Le taux CSG dépend surtout du revenu fiscal de référence et du nombre de parts fiscales."},
+  social:{sens:"Prélèvements sociaux appliqués aux pensions de retraite.",
+    calc:"CSG choisie + CRDS éventuelle + CASA éventuelle selon le taux CSG sélectionné.",
+    limite:"Le bon taux dépend de votre revenu fiscal de référence ; il doit être ajusté manuellement si besoin."},
+  agircHealth:{sens:"Cotisation maladie spécifique appliquée à la retraite complémentaire Agirc-Arrco.",
+    calc:"1 % de la retraite complémentaire brute mensuelle.",
+    limite:"Elle est séparée des prélèvements sociaux généraux pour rendre le net retraite plus lisible."},
+  retPas:{sens:"Prélèvement à la source appliqué à la pension après prélèvements sociaux.",
+    calc:"Net avant impôt retraite × taux PAS retraite.",
+    limite:"Le taux réel peut changer au moment du départ à la retraite."},
+};
+
 function retirementRule(birthYear){
   if(birthYear <= 1960) return {legalAge:62, required:167};
   if(birthYear === 1961) return {legalAge:62.25, required:169};
@@ -946,27 +997,37 @@ function renderRetirement(){
   document.getElementById('retLegalAge').textContent = fmtAge(rule.legalAge);
 
   const rows = [
-    ['Départ simulé', `${fmtAge(retirementAge)} (${nf0.format(retirementYear)})`],
-    ['Trimestres estimés', `${nf0.format(quarters)} / ${nf0.format(rule.required)}`],
-    ['Décote retenue', decoteQuarters ? `${nf0.format(decoteQuarters)} trimestre(s)` : 'Aucune'],
-    ['Surcote indicative', surcoteQuarters ? `${nf0.format(surcoteQuarters)} trimestre(s)` : 'Aucune'],
-    ['Salaire annuel moyen retenu', eur(samRetained)],
-    ['Retraite de base brute', eur(baseAnnual/12)],
-    ['Points Agirc-Arrco estimés', nf2.format(points)],
-    ['Retraite Agirc-Arrco brute', eur(compAnnual/12)],
-    ['Situation fiscale', familyLabel],
-    ['Prélèvements sociaux retraite', nf2.format(socialRate)+' %'],
-    ['Cotisation maladie Agirc-Arrco', '- '+eur(agircHealth)],
-    ['PAS retraite', nf2.format(retPas)+' %'],
+    ['depart','Départ simulé', `${fmtAge(retirementAge)} (${nf0.format(retirementYear)})`],
+    ['quarters','Trimestres estimés', `${nf0.format(quarters)} / ${nf0.format(rule.required)}`],
+    ['decote','Décote retenue', decoteQuarters ? `${nf0.format(decoteQuarters)} trimestre(s)` : 'Aucune'],
+    ['surcote','Surcote indicative', surcoteQuarters ? `${nf0.format(surcoteQuarters)} trimestre(s)` : 'Aucune'],
+    ['sam','Salaire annuel moyen retenu', eur(samRetained)],
+    ['base','Retraite de base brute', eur(baseAnnual/12)],
+    ['points','Points Agirc-Arrco estimés', nf2.format(points)],
+    ['comp','Retraite Agirc-Arrco brute', eur(compAnnual/12)],
+    ['family','Situation fiscale', familyLabel],
+    ['social','Prélèvements sociaux retraite', nf2.format(socialRate)+' %'],
+    ['agircHealth','Cotisation maladie Agirc-Arrco', '- '+eur(agircHealth)],
+    ['retPas','PAS retraite', nf2.format(retPas)+' %'],
   ];
-  document.getElementById('retBreakdown').innerHTML = rows.map(([k,v])=>
-    `<div class="ret-row"><span>${k}</span><b class="mono">${v}</b></div>`).join('');
+  document.getElementById('retBreakdown').innerHTML = rows.map(([id,k,v])=>{
+    const e = RET_EXPL[id] || {};
+    const open = retOpenRows.has(id);
+    return `<div class="ret-row ${open?'open':''}" data-id="${id}">
+      <span><span class="chev">▸</span>${k}</span><b class="mono">${v}</b></div>
+      <div class="ret-exp ${open?'open':''}" data-for="${id}"><div class="ret-exp-inner">
+        <div><span class="exp-k">Sens</span><p>${e.sens||''}</p></div>
+        <div><span class="exp-k">Calcul</span><p>${e.calc||''}</p></div>
+        <div><span class="exp-k">Limite</span><p>${e.limite||''}</p></div>
+      </div></div>`;
+  }).join('');
 }
 
 // ---------- Liaisons ----------
 const brutInput = document.getElementById('brut');
 const brutRange = document.getElementById('brutRange');
 const openRows = new Set();
+const retOpenRows = new Set();
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -976,6 +1037,15 @@ document.querySelectorAll('.tab-btn').forEach(btn=>{
     document.getElementById(btn.dataset.tab).classList.add('active');
     renderRetirement();
   });
+});
+
+document.getElementById('retBreakdown').addEventListener('click', e=>{
+  const row = e.target.closest('.ret-row');
+  if(!row) return;
+  const id = row.dataset.id;
+  if(retOpenRows.has(id)) retOpenRows.delete(id);
+  else retOpenRows.add(id);
+  renderRetirement();
 });
 
 // Délégation : clic sur une ligne de cotisation = déplie/replie son explication
