@@ -476,10 +476,10 @@
               <input id="retAge" class="mono" type="text" value="64"></div>
             <div class="pf"><label>Trimestres déjà acquis</label>
               <input id="retQuarters" class="mono" type="text" value="">
-              <div class="hint">Vide = estimation depuis le début de cotisation</div></div>
+              <div class="hint" id="retQuartersHint">Estimé automatiquement depuis le début de cotisation</div></div>
             <div class="pf"><label>Points Agirc-Arrco déjà acquis</label>
               <input id="retPoints" class="mono" type="text" value="">
-              <div class="hint">Vide = estimation simplifiée sur la carrière</div></div>
+              <div class="hint" id="retPointsHint">Estimé automatiquement depuis le salaire actuel</div></div>
             <div class="pf"><label>Nombre d'enfants</label>
               <input id="retChildren" class="mono" type="text" value="0">
               <div class="hint">Majoration de pension si 3 enfants ou plus</div></div>
@@ -880,7 +880,7 @@ const RET_EXPL = {
     calc:"Année de départ = année de naissance + âge de départ souhaité.",
     limite:"Ne détecte pas encore les cas particuliers comme carrière longue, handicap ou pénibilité."},
   quarters:{sens:"Nombre de trimestres pris en compte à la date de départ simulée.",
-    calc:"Si les trimestres acquis sont vides : estimation depuis l'année de début de cotisation. Sinon : trimestres acquis + trimestres futurs + trimestres enfants saisis.",
+    calc:"Trimestres déjà acquis estimés automatiquement jusqu'à l'année actuelle, puis ajout des trimestres futurs jusqu'au départ et des trimestres enfants saisis. Si vous modifiez le champ, votre valeur manuelle remplace l'estimation des acquis.",
     limite:"Les périodes de chômage, maladie, service national ou temps partiel ne sont pas détaillées."},
   decote:{sens:"Réduction appliquée quand le départ est avant le taux plein et qu'il manque des trimestres.",
     calc:"Décote indicative : 0,625 point de taux par trimestre manquant, plafonnée à 20 trimestres.",
@@ -895,7 +895,7 @@ const RET_EXPL = {
     calc:"Salaire annuel moyen retenu × taux × prorata trimestres × éventuelle surcote/majoration enfants.",
     limite:"C'est une estimation pédagogique, sensible au salaire annuel moyen et aux trimestres réellement validés."},
   points:{sens:"Nombre de points Agirc-Arrco estimés à la date de départ.",
-    calc:"Si les points acquis sont vides : estimation simplifiée sur la carrière. Sinon : points acquis + points futurs estimés.",
+    calc:"Points déjà acquis estimés automatiquement jusqu'à l'année actuelle, puis ajout des points futurs estimés jusqu'au départ. Si vous modifiez le champ, votre valeur manuelle remplace l'estimation des acquis.",
     limite:"Les points réels dépendent de chaque année cotisée et figurent sur le relevé officiel Info Retraite."},
   comp:{sens:"Part de pension issue de la retraite complémentaire Agirc-Arrco.",
     calc:"Points Agirc-Arrco estimés × valeur annuelle de service du point.",
@@ -961,10 +961,18 @@ function renderRetirement(){
   const yearsToRetirement = Math.max(0, retirementAge - currentAge);
   const retirementYear = birthYear + retirementAge;
   const careerYearsAtRetirement = Math.max(0, retirementYear - startYear);
-  const estimatedQuarters = Math.floor(careerYearsAtRetirement*4) + childQuarters;
-  const acquiredQuarters = hasValue('retQuarters')
-    ? Math.round(parseFR(document.getElementById('retQuarters').value)) + Math.floor(yearsToRetirement*4) + childQuarters
-    : estimatedQuarters;
+  const careerYearsToDate = Math.max(0, currentYear - startYear);
+  const futureQuarters = Math.floor(yearsToRetirement*4);
+  const autoAcquiredQuarters = Math.floor(careerYearsToDate*4);
+  const retQuartersEl = document.getElementById('retQuarters');
+  if(retQuartersAuto){
+    retQuartersEl.value = nf0.format(autoAcquiredQuarters);
+    document.getElementById('retQuartersHint').textContent = 'Estimé automatiquement depuis le début de cotisation';
+  } else {
+    document.getElementById('retQuartersHint').textContent = 'Valeur manuelle utilisée';
+  }
+  const acquiredQuarters = (retQuartersAuto ? autoAcquiredQuarters : Math.round(parseFR(retQuartersEl.value)))
+    + futureQuarters + childQuarters;
   const quarters = Math.max(0, acquiredQuarters);
 
   const projectedSalary = salaryAnnual * Math.pow(1+growth, yearsToRetirement);
@@ -983,9 +991,15 @@ function renderRetirement(){
 
   const baseAnnual = samRetained * baseRate/100 * prorata * surcoteFactor * (1+childMajoration);
   const annualPoints = agircPointsFromSalary(salaryAnnual, pass);
-  const points = hasValue('retPoints')
-    ? parseFR(document.getElementById('retPoints').value) + annualPoints*yearsToRetirement
-    : annualPoints*careerYearsAtRetirement;
+  const autoAcquiredPoints = annualPoints*careerYearsToDate;
+  const retPointsEl = document.getElementById('retPoints');
+  if(retPointsAuto){
+    retPointsEl.value = nf2.format(autoAcquiredPoints);
+    document.getElementById('retPointsHint').textContent = 'Estimé automatiquement depuis le salaire actuel';
+  } else {
+    document.getElementById('retPointsHint').textContent = 'Valeur manuelle utilisée';
+  }
+  const points = (retPointsAuto ? autoAcquiredPoints : parseFR(retPointsEl.value)) + annualPoints*yearsToRetirement;
   const compAnnual = points * RETIREMENT.agircServicePoint * (1+childMajoration);
   const grossAnnual = baseAnnual + compAnnual;
   const grossMonthly = grossAnnual/12;
@@ -1036,6 +1050,8 @@ const brutInput = document.getElementById('brut');
 const brutRange = document.getElementById('brutRange');
 const openRows = new Set();
 const retOpenRows = new Set();
+let retQuartersAuto = true;
+let retPointsAuto = true;
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
@@ -1112,10 +1128,19 @@ document.getElementById('autoReint').addEventListener('change', render);
 document.getElementById('solveBtn').addEventListener('click', solve);
 document.getElementById('targetNet').addEventListener('keydown', e=>{ if(e.key==='Enter') solve(); });
 
-['retBirthYear','retCurrentYear','retStartYear','retAge','retQuarters','retPoints','retChildren',
+['retBirthYear','retCurrentYear','retStartYear','retAge','retChildren',
  'retChildQuarters','retGrowth','retSam','retFamily','retCsg','retPas'].forEach(id=>{
   document.getElementById(id).addEventListener('input', renderRetirement);
   document.getElementById(id).addEventListener('change', renderRetirement);
+});
+
+document.getElementById('retQuarters').addEventListener('input', e=>{
+  retQuartersAuto = e.target.value.trim() === '';
+  renderRetirement();
+});
+document.getElementById('retPoints').addEventListener('input', e=>{
+  retPointsAuto = e.target.value.trim() === '';
+  renderRetirement();
 });
 
 // Lexique des agrégats
@@ -1134,6 +1159,8 @@ document.getElementById('reset').addEventListener('click', ()=>{
   document.getElementById('autoReint').checked=true;
   document.getElementById('rateEdit').checked=false;
   ratesEditable=false;
+  retQuartersAuto=true;
+  retPointsAuto=true;
   brutRange.value=5000; render();
 });
 
