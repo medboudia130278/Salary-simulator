@@ -1128,7 +1128,6 @@ function unlockApp(){
   document.body.classList.add('unlocked');
   document.getElementById('gate').hidden = true;
   document.getElementById('app').hidden = false;
-  try{ sessionStorage.setItem('salarySimulatorUnlocked', '1'); }catch(e){}
 }
 
 document.getElementById('gateForm').addEventListener('submit', e=>{
@@ -1144,9 +1143,7 @@ document.getElementById('gateForm').addEventListener('submit', e=>{
   }
 });
 
-try{
-  if(sessionStorage.getItem('salarySimulatorUnlocked') === '1') unlockApp();
-}catch(e){}
+try{ sessionStorage.removeItem('salarySimulatorUnlocked'); }catch(e){}
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
