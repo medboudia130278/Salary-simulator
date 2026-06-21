@@ -21,6 +21,7 @@
     font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
   .wrap{max-width:1120px;margin:0 auto;padding:32px 22px 80px}
   .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+  .gate-stack{width:min(420px,100%)}
   .gate-card{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);
     border-radius:12px;padding:26px}
   .gate-card .company-logo{margin-bottom:18px}
@@ -34,7 +35,7 @@
   .gate-actions button{background:var(--copper);color:#1a1206;border:none;font-weight:700;
     padding:10px 16px;border-radius:8px;cursor:pointer}
   .gate-error{min-height:18px;color:var(--debit);font-size:11.5px}
-  .gate-credit{margin-top:18px;text-align:center;font-size:12px}
+  .gate-credit{margin-top:14px;text-align:center;font-size:12px}
 
   /* Header */
   header{display:flex;align-items:flex-end;justify-content:space-between;
@@ -264,20 +265,22 @@
 </head>
 <body>
 <main id="gate" class="gate">
-  <form id="gateForm" class="gate-card">
-    <img class="company-logo" src="assets/alstom-logo.png" alt="Alstom">
-    <h1>Accès au simulateur</h1>
-    <p>Entrez le mot de passe pour ouvrir le simulateur salaire &amp; retraite.</p>
-    <div class="gate-field">
-      <label for="gatePassword">Mot de passe</label>
-      <input id="gatePassword" type="password" autocomplete="current-password" autofocus>
-    </div>
-    <div class="gate-actions">
-      <span id="gateError" class="gate-error"></span>
-      <button type="submit">Ouvrir</button>
-    </div>
+  <div class="gate-stack">
+    <form id="gateForm" class="gate-card">
+      <img class="company-logo" src="assets/alstom-logo.png" alt="Alstom">
+      <h1>Accès au simulateur</h1>
+      <p>Entrez le mot de passe pour ouvrir le simulateur salaire &amp; retraite.</p>
+      <div class="gate-field">
+        <label for="gatePassword">Mot de passe</label>
+        <input id="gatePassword" type="password" autocomplete="current-password" autofocus>
+      </div>
+      <div class="gate-actions">
+        <span id="gateError" class="gate-error"></span>
+        <button type="submit">Ouvrir</button>
+      </div>
+    </form>
     <div class="gate-credit credit">Créé par Mohamed BOUDIA</div>
-  </form>
+  </div>
 </main>
 
 <div id="app" class="wrap" hidden>
