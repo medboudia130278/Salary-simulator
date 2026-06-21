@@ -20,6 +20,20 @@
   .mono{font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
     font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
   .wrap{max-width:1120px;margin:0 auto;padding:32px 22px 80px}
+  .gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px}
+  .gate-card{width:min(420px,100%);background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;padding:26px}
+  .gate-card .company-logo{margin-bottom:18px}
+  .gate-card h1{font-size:20px;margin-bottom:8px}
+  .gate-card p{font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:18px}
+  .gate-field label{display:block;font-size:11px;color:var(--muted);margin-bottom:7px}
+  .gate-field input{width:100%;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;padding:12px;color:var(--txt);font-size:15px;outline:none}
+  .gate-field input:focus{border-color:var(--copper)}
+  .gate-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:14px}
+  .gate-actions button{background:var(--copper);color:#1a1206;border:none;font-weight:700;
+    padding:10px 16px;border-radius:8px;cursor:pointer}
+  .gate-error{min-height:18px;color:var(--debit);font-size:11.5px}
 
   /* Header */
   header{display:flex;align-items:flex-end;justify-content:space-between;
@@ -248,7 +262,23 @@
 </style>
 </head>
 <body>
-<div class="wrap">
+<main id="gate" class="gate">
+  <form id="gateForm" class="gate-card">
+    <img class="company-logo" src="assets/alstom-logo.png" alt="Alstom">
+    <h1>Accès au simulateur</h1>
+    <p>Entrez le mot de passe pour ouvrir le simulateur salaire &amp; retraite.</p>
+    <div class="gate-field">
+      <label for="gatePassword">Mot de passe</label>
+      <input id="gatePassword" type="password" autocomplete="current-password" autofocus>
+    </div>
+    <div class="gate-actions">
+      <span id="gateError" class="gate-error"></span>
+      <button type="submit">Ouvrir</button>
+    </div>
+  </form>
+</main>
+
+<div id="app" class="wrap" hidden>
 
   <header>
     <div class="brand">
@@ -1082,6 +1112,30 @@ const retOpenRows = new Set();
 let retQuartersAuto = true;
 let retPointsAuto = true;
 let retSamAuto = true;
+const APP_PASSWORD = 'mohamed';
+
+function unlockApp(){
+  document.getElementById('gate').hidden = true;
+  document.getElementById('app').hidden = false;
+  sessionStorage.setItem('salarySimulatorUnlocked', '1');
+}
+
+document.getElementById('gateForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const input = document.getElementById('gatePassword');
+  if(input.value === APP_PASSWORD){
+    document.getElementById('gateError').textContent = '';
+    unlockApp();
+  } else {
+    document.getElementById('gateError').textContent = 'Mot de passe incorrect';
+    input.value = '';
+    input.focus();
+  }
+});
+
+if(sessionStorage.getItem('salarySimulatorUnlocked') === '1'){
+  unlockApp();
+}
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
