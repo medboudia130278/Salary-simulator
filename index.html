@@ -15,6 +15,9 @@
   }
   *{box-sizing:border-box;margin:0;padding:0}
   [hidden]{display:none!important}
+  body.locked #app{display:none!important}
+  body.unlocked #gate{display:none!important}
+  body.unlocked #app{display:block!important}
   html,body{background:var(--bg);color:var(--txt);
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     -webkit-font-smoothing:antialiased}
@@ -264,7 +267,7 @@
   .note b{color:var(--muted)}
 </style>
 </head>
-<body>
+<body class="locked">
 <main id="gate" class="gate">
   <div class="gate-stack">
     <form id="gateForm" class="gate-card">
@@ -284,7 +287,7 @@
   </div>
 </main>
 
-<div id="app" class="wrap" hidden>
+<div id="app" class="wrap">
 
   <header>
     <div class="brand">
@@ -1121,15 +1124,17 @@ let retSamAuto = true;
 const APP_PASSWORD = 'mohamed';
 
 function unlockApp(){
+  document.body.classList.remove('locked');
+  document.body.classList.add('unlocked');
   document.getElementById('gate').hidden = true;
   document.getElementById('app').hidden = false;
-  sessionStorage.setItem('salarySimulatorUnlocked', '1');
+  try{ sessionStorage.setItem('salarySimulatorUnlocked', '1'); }catch(e){}
 }
 
 document.getElementById('gateForm').addEventListener('submit', e=>{
   e.preventDefault();
   const input = document.getElementById('gatePassword');
-  if(input.value === APP_PASSWORD){
+  if(input.value.trim() === APP_PASSWORD){
     document.getElementById('gateError').textContent = '';
     unlockApp();
   } else {
@@ -1139,9 +1144,9 @@ document.getElementById('gateForm').addEventListener('submit', e=>{
   }
 });
 
-if(sessionStorage.getItem('salarySimulatorUnlocked') === '1'){
-  unlockApp();
-}
+try{
+  if(sessionStorage.getItem('salarySimulatorUnlocked') === '1') unlockApp();
+}catch(e){}
 
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
